@@ -33,7 +33,7 @@ var util = vuforia.util();
 
 
 
-const Domain = "https://studio.augmoar.com/assets"
+const Domain = "https://studio.augmoar.com"
 // const Domain = "http://localhost:3030"
 
 //Post Sign Up
