@@ -33,8 +33,8 @@ var util = vuforia.util();
 
 
 
-// const Domain = "http://139.59.85.183/augmo"
-const Domain = "http://localhost:3030"
+const Domain = "https://studio.augmoar.com/assets"
+// const Domain = "http://localhost:3030"
 
 //Post Sign Up
 router.post('/signup', function(req, res, next) {
