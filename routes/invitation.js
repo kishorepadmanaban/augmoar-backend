@@ -15,8 +15,26 @@ const Invitation = require('../models/invitation');
 const User = require('../models/user');
 const Info = require('../models/infocard');
 
-const Domain = "http://139.59.85.183/augmo"
+// load module
+var vuforia = require('vuforia-web-service');
 
+// init client with valid credentials
+var client = vuforia.client({
+
+    // provision_access_key
+    'accessKey': 'c3abfd916b3ccc42c7328641f6dc4a290853ddfc',
+
+    // server_secret_key
+    'secretKey': '46fae2f9393785fe36e952563c3eccc32449aa4e'
+});
+
+// util for base64 encoding and decoding
+var util = vuforia.util();
+
+
+
+// const Domain = "http://139.59.85.183/augmo"
+const Domain = "http://localhost:3030"
 
 //Post Sign Up
 router.post('/signup', function(req, res, next) {
@@ -177,75 +195,78 @@ router.post('/invitationimage', function(req, res, next) {
   let ext = path.parse(filename).ext
   ext = ext.toLowerCase()
   filename = name + Date.now() + ext
+  console.log(filename)
   // Use the mv() method to place the file somewhere on your server
   File.mv('assets/images/invitations/' + filename, function(err) {
     if (err) {
       return res.status(500).send(err);
     } else {
       let image = Domain+'/assets/images/invitations/' + filename;
-      //Send order placed conformation message
-      axios.get(Domain+'/vuforia/PostNewTarget.php?name='+filename+'&location='+image)
-      .then(response => {
-        console.log(response.data);
-        var vuforia = response.data;
+      console.log(image)
 
-        if(response.data.result_code==="BadImage")
-        {
-          res.send({error:"Bad Image"})
-        }
+      var target = {
+        // name of the target, unique within a database
+        'name': filename,
+        // width of the target in scene unit
+        'width': 1.0,
+        // the base64 encoded binary recognition image data
+        'image': util.encodeFileBase64('assets/images/invitations/' + filename),
+        // indicates whether or not the target is active for query
+        'active_flag': true,
+        // the base64 encoded application metadata associated with the target
+        'application_metadata': util.encodeBase64('some metadata about your image')
+      };
 
-        if(response.data.result_code==="TargetCreated")
-        {
-          //Check if duplicate target exist
-          axios.get(Domain+'/vuforia/DuplicateTarget.php?target_id='+vuforia.target_id)
-          .then(response => {
-            console.log(response.data)
-            if(response.data.similar_targets.length<1)
+      client.addTarget(target, function (error, result) {
+        if (error) { // e.g. [Error: AuthenticationFailure]
+            console.error({result});
+            if(result.result_code==="BadImage")
             {
-              var getTarget = setInterval(function(){
-                axios.get(Domain+'/vuforia/GetTarget.php?target_id='+vuforia.target_id)
-                .then(response => {
-                  console.log(response.data)
-                  if(response.data.target_record.tracking_rating !== -1)
+              res.send({error:"Bad Image"})
+            }
+        } else {
+          console.log({result});
+          if(result.result_code==="TargetCreated"){
+            //Check if duplicate target exist
+              client.checkForDuplicateTargets(result.target_id, function (error, duplicate) {
+
+              console.log(duplicate)
+              if(duplicate.similar_targets.length<1)
+              {
+                var getTarget = setInterval(function(){
+                  client.retrieveTarget(result.target_id, function (error, result) {
+
+                    console.log(result)
+                    if(result.target_record.tracking_rating !== -1)
+                    {
+                      res.send({status:"success",response:result, image});
+                      clearInterval(getTarget);
+                    }
+                  })
+                }, 3000);
+              }else{
+                res.send({error:"Duplicate target exist"})
+
+                var getTarget = setInterval(function(){
+                client.deleteTarget(result.target_id, function (error, result) {
+                  console.log(result)
+                  if(result.result_code === "Success")
                   {
-                    res.send({status:"success",response:response.data, image});
                     clearInterval(getTarget);
+                  }else if(result.result_code==="UnknownTarget"){
+                    res.send({status:"No target exist"})
+                    clearInterval(getTarget)
                   }
                 })
-                .catch(error => {
-                  console.log(error);
-                }).catch(next);
               }, 3000);
-            }else{
-              res.send({error:"Duplicate target exist"})
-
-              var getTarget = setInterval(function(){
-              axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+vuforia.target_id)
-              .then(response => {
-                console.log(response.data)
-                if(response.data.result_code === "Success")
-                {
-                  clearInterval(getTarget);
-                }else if(response.data.result_code==="UnknownTarget"){
-                  res.send({status:"No target exist"})
-                  clearInterval(getTarget)
-                }
-              })
-              .catch(error => {
-                console.log(error);
-              }).catch(next);
-            }, 3000);
-            }
-          })
-          .catch(error => {
-            console.log(error);
-          }).catch(next);
-
+              }
+            })
+            .catch(error => {
+              console.log(error);
+            }).catch(next);
+          }
         }
-      })
-      .catch(error => {
-        console.log(error.response);
-      }).catch(next);
+    });
     }
   })
 });
@@ -253,14 +274,10 @@ router.post('/invitationimage', function(req, res, next) {
 
 //Post Invitation
 router.get('/gettarget/:id', function(req, res, next) {
-  axios.get(Domain+'/vuforia/GetTarget.php?target_id='+req.params.id)
-  .then(response => {
-    console.log(response.data);
-    res.send(response.data);
+  client.retrieveTarget(req.params.id, function (error, result) {
+    console.log(result);
+    res.send(result);
   })
-  .catch(error => {
-    console.log(error);
-  }).catch(next);
 });
 
 //Post Invitation
@@ -278,22 +295,17 @@ router.get('/getsummary/:id', function(req, res, next) {
 //Delete Invitation
 router.delete('/deleteinvitationimage/:id', function(req, res, next) {
   var deleteTarget = setInterval(function(){
-
-  axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+req.params.id)
-  .then(response => {
-    console.log(response.data);
-    if(response.data.result_code==="Success")
+    client.deleteTarget(req.params.id, function (error, result) {
+    console.log(result);
+    if(result.result_code==="Success")
     {
       res.send(response.data);
       clearInterval(deleteTarget);
-    }else if(response.data.result_code==="UnknownTarget"){
+    }else if(result.result_code==="UnknownTarget"){
       res.send(response.data)
       clearInterval(deleteTarget)
     }
   })
-  .catch(error => {
-    console.log(error);
-  }).catch(next);
 }, 3000);
 });
 
@@ -309,12 +321,12 @@ router.delete('/deleteinvitationvideo', function(req, res, next) {
 
 //Delete Gallery Image
 router.delete('/deletegalleryimage', function(req, res, next) {
-  console.log(req.body.image);
-  fs.unlink("./"+req.body.image, (err) => {
-    if (err) throw err;
+  // console.log(req.body.image);
+  // fs.unlink("./"+req.body.image, (err) => {
+  //   if (err) throw err;
     res.send({status:"success"})
-    console.log('successfully deleted ');
-  });
+  //   console.log('successfully deleted ');
+  // });
 });
 
 
@@ -373,7 +385,8 @@ router.post('/galleryimages', function(req, res, next) {
     if (err) {
       return res.status(500).send(err);
     } else {
-      images.push(Domain+'/assets/images/gallery/' + filename)
+      upload('assets/images/gallery/' + filename, filename, function(cb, location){ 
+      images.push(location)
       if(i===Object.keys(req.files).length-1)
       {
         res.send({
@@ -381,8 +394,9 @@ router.post('/galleryimages', function(req, res, next) {
           status: 'success'
         })
       }
-    }
   })
+}
+})
 }
 });
 
@@ -418,10 +432,11 @@ router.post('/delete_all',function(req, res, next){
   if(req.body.metadata.productCategory==="invitation")
   {
     var deleteTarget = setInterval(function(){
-      axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+req.body.metadata.vuforia.target_record.target_id)
-      .then(response => {
-        console.log(response.data);
-        if(response.data.result_code==="Success")
+      // axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+req.body.metadata.vuforia.target_record.target_id)
+      // .then(response => {
+        client.deleteTarget(req.body.metadata.vuforia.target_record.target_id, function (error, result) {
+        console.log(result);
+        if(result.result_code==="Success")
         {
           Invitation.findByIdAndRemove({_id:req.body._id}).then(invitation=>{
             Invitation.find({email:req.body.email}).then(invitation=>{
@@ -429,7 +444,7 @@ router.post('/delete_all',function(req, res, next){
             clearInterval(deleteTarget);
           })
         })
-        }else if(response.data.result_code==="UnknownTarget"){
+        }else if(result.result_code==="UnknownTarget"){
           Invitation.findByIdAndRemove({_id:req.body._id}).then(invitation=>{
             Invitation.find({email:req.body.email}).then(invitation=>{
               res.send({status:"No target exist",data:invitation})
@@ -438,9 +453,9 @@ router.post('/delete_all',function(req, res, next){
         })
         }
       })
-      .catch(error => {
-        console.log(error);
-      }).catch(next);
+      // .catch(error => {
+      //   console.log(error);
+      // }).catch(next);
     }, 3000);
   }else if(req.body.metadata.productCategory==="photo")
   {
@@ -449,9 +464,11 @@ router.post('/delete_all',function(req, res, next){
     {
       for(let i=0; i<photos.length; i++){
           console.log(photos[i].vuforia.target_record)
-          axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+photos[i].vuforia.target_record.target_id)
-          .then(response => {
-            if(response.data.result_code==="Success")
+          // axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+photos[i].vuforia.target_record.target_id)
+          // .then(response => {
+            client.deleteTarget(photos[i].vuforia.target_record.target_id, function (error, result) {
+
+            if(result.result_code==="Success")
             {
               if(i === photos.length-1)
               {
@@ -461,15 +478,12 @@ router.post('/delete_all',function(req, res, next){
                   })
                 })
               }
-            }else if(response.data.result_code==="UnknownTarget"){
+            }else if(result.result_code==="UnknownTarget"){
               Invitation.findByIdAndRemove({_id:req.body._id}).then(invitation=>{
               })
               // res.send({status:"success"})
             }
           })
-          .catch(error => {
-            console.log(error);
-          }).catch(next);
       }
     }
   }
@@ -481,21 +495,20 @@ router.post('/delete_all_to_logout',function(req, res, next){
     Invitation.findOne({"metadata.vuforia.target_record.target_id":req.body.project.vuforia.target_record.target_id}).then(invitation=>{
       if(!invitation){
         var deleteTarget = setInterval(function(){
-          axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+req.body.vuforia.target_record.target_id)
-          .then(response => {
+          // axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+req.body.vuforia.target_record.target_id)
+          // .then(response => {
+            client.deleteTarget(req.body.vuforia.target_record.target_id, function (error, result) {
+
             console.log(response.data);
-            if(response.data.result_code==="Success")
+            if(result.result_code==="Success")
             {
-                // res.send({status:"success",data:invitation});
-                clearInterval(deleteTarget);
-            }else if(response.data.result_code==="UnknownTarget"){
-                  // res.send({status:"No target exist",data:invitation})
-                clearInterval(deleteTarget);
+              // res.send({status:"success",data:invitation});
+              clearInterval(deleteTarget);
+            }else if(result.result_code==="UnknownTarget"){
+              // res.send({status:"No target exist",data:invitation})
+              clearInterval(deleteTarget);
             }
           })
-          .catch(error => {
-            console.log(error);
-          }).catch(next);
         }, 3000);
       }
     })
@@ -509,21 +522,20 @@ router.post('/delete_all_to_logout',function(req, res, next){
         if(photos.length>0)
         {
           for(let i=0; i<photos.length; i++){
-              axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+photos[i].vuforia.target_record.target_id)
-              .then(response => {
-                if(response.data.result_code==="Success")
+            client.deleteTarget(req.body.vuforia.target_record.target_id, function (error, result) {
+
+              // axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+photos[i].vuforia.target_record.target_id)
+              // .then(response => {
+              if(result.result_code==="Success")
+              {
+                if(i === photos.length-1)
                 {
-                  if(i === photos.length-1)
-                  {
-                    // res.send({status:"success",data:invitation});
-                  }
-                }else if(response.data.result_code==="UnknownTarget"){
-                  console.log(response.data.result_code)
+                  // res.send({status:"success",data:invitation});
                 }
-              })
-              .catch(error => {
-                console.log(error);
-              }).catch(next);
+              }else if(result.result_code==="UnknownTarget"){
+                console.log(result.result_code)
+              }
+            })
           }
         }
       }
@@ -554,11 +566,17 @@ router.post('/sendotp', function(req, res, next) {
 //Send metadata
 router.post('/sendmetadata', function(req, res, next) {
   req.body.metadata.limit = 10;
+  var update = {
+    'application_metadata': util.encodeBase64(JSON.stringify(req.body.metadata))
+  };
+  
   var getTarget = setInterval(function(){
-  axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+req.body.target_id+'&metadata='+encodeURIComponent(JSON.stringify(req.body.metadata)))
-  .then(response => {
-    console.log(response.data);
-    if(response.data.result_code==="Success")
+    client.updateTarget(req.body.target_id, update, function (error, result) {
+
+  // axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+req.body.target_id+'&metadata='+encodeURIComponent(JSON.stringify(req.body.metadata)))
+  // .then(response => {
+    console.log(result);
+    if(result.result_code==="Success")
     {
       req.body.metadata.published = true;
       Invitation.findOne({target_id:req.body.target_id}).then(invitation=>{
@@ -573,13 +591,10 @@ router.post('/sendmetadata', function(req, res, next) {
         }
       })
       clearInterval(getTarget);
-    }else if(response.data.result_code==="UnknownTarget"){
+    }else if(result.result_code==="UnknownTarget"){
       clearInterval(getTarget);
     }
   })
-  .catch(error => {
-    console.log(error);
-  }).catch(next);
 }, 3000);
 });
 
@@ -587,9 +602,13 @@ router.post('/sendmetadata', function(req, res, next) {
 router.post('/send_payment_details', function(req, res, next) {
   var getTarget = setInterval(function(){
   req.body.data.limit = 10000
-  axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+req.body.data.vuforia.target_record.target_id+'&metadata='+encodeURIComponent(JSON.stringify(req.body.data)))
-  .then(response => {
-    if(response.data.result_code==="Success")
+  var update = {
+    'application_metadata': util.encodeBase64(JSON.stringify(req.body.data))
+  };
+  // axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+req.body.data.vuforia.target_record.target_id+'&metadata='+encodeURIComponent(JSON.stringify(req.body.data)))
+  // .then(response => {
+    client.updateTarget(req.body.data.vuforia.target_record.target_id, update, function (error, result) {
+    if(result.result_code==="Success")
     {
       Invitation.findOne({target_id:req.body.data.vuforia.target_record.target_id}).then(invitation=>{
         if(invitation){
@@ -616,13 +635,10 @@ router.post('/send_payment_details', function(req, res, next) {
         }
       })
       clearInterval(getTarget);
-    }else if(response.data.result_code==="UnknownTarget"){
+    }else if(result.result_code==="UnknownTarget"){
       clearInterval(getTarget);
     }
   })
-  .catch(error => {
-    console.log(error);
-  }).catch(next);
 }, 3000);
 });
 
@@ -644,10 +660,15 @@ router.post('/send_payment_details_photo', function(req, res, next) {
       for(let i=0; i<photos.length; i++){
         var getTarget = setInterval(function(){
           photos[i].limit = 10000
-          axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+photos[i].vuforia.target_record.target_id+'&metadata='+encodeURIComponent(JSON.stringify(photos[i])))
-          .then(response => {
-            console.log(response.data)
-            if(response.data.result_code==="Success")
+          var update = {
+            'application_metadata': util.encodeBase64(JSON.stringify(photos[i]))
+          };
+          client.updateTarget(req.body.data.vuforia.target_record.target_id, update, function (error, result) {
+
+          // axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+photos[i].vuforia.target_record.target_id+'&metadata='+encodeURIComponent(JSON.stringify(photos[i])))
+          // .then(response => {
+            console.log(result)
+            if(result.result_code==="Success")
             {
               if(i===photos.length-1){
                 Invitation.findByIdAndUpdate({_id:req.body._id},{"metadata.payment":photos[i].payment,"metadata._id":req.body._id}).then(photo=>{
@@ -672,13 +693,10 @@ router.post('/send_payment_details_photo', function(req, res, next) {
                 })
               }
               clearInterval(getTarget);
-            }else if(response.data.result_code==="UnknownTarget"){
+            }else if(result.result_code==="UnknownTarget"){
               clearInterval(getTarget);
             }
           })
-          .catch(error => {
-            console.log(error);
-          }).catch(next);
         }, 3000);
       }
     }
@@ -689,11 +707,15 @@ router.post('/send_payment_details_photo', function(req, res, next) {
 //Send metadata
 router.post('/send_metadata_photo', function(req, res, next) {
   req.body.metadata.limit = 10;
+  var update = {
+    'application_metadata': util.encodeBase64(JSON.stringify(req.body.metadata))
+  };
   var getTarget = setInterval(function(){
-  axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+req.body.target_id+'&metadata='+encodeURIComponent(JSON.stringify(req.body.metadata)))
-  .then(response => {
-    console.log(response.data);
-    if(response.data.result_code==="Success")
+    client.updateTarget(req.body.target_id, update, function (error, result) {
+  // axios.get(Domain+'/vuforia/UpdateTarget.php?target_id='+req.body.target_id+'&metadata='+encodeURIComponent(JSON.stringify(req.body.metadata)))
+  // .then(response => {
+    console.log(result);
+    if(result.result_code==="Success")
     {
       req.body.metadata.published = true;
       let photos = {};
@@ -730,9 +752,6 @@ router.post('/send_metadata_photo', function(req, res, next) {
       clearInterval(getTarget);
     }
   })
-  .catch(error => {
-    console.log(error);
-  }).catch(next);
 }, 3000);
 });
 
@@ -742,19 +761,17 @@ router.post('/delete_all_to_create_new_project',function(req, res, next){
     if(req.body.invitation.vuforia)
     {
       var getTarget = setInterval(function(){
+        client.deleteTarget(req.body.invitation.vuforia.target_record.target_id, function (error, result) {
 
-      axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+req.body.invitation.vuforia.target_record.target_id)
-      .then(response => {
-        console.log(response.data);
-        if(response.data.result_code==="Success")
+      // axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+req.body.invitation.vuforia.target_record.target_id)
+      // .then(response => {
+        console.log(result);
+        if(result.result_code==="Success")
         {
           clearInterval(getTarget);
-        }else if(response.data.result_code==="UnknownTarget"){
+        }else if(result.result_code==="UnknownTarget"){
           clearInterval(getTarget);
         }
-      })
-      .catch(error => {
-        console.log(error);
       })
     }, 3000);
     }
@@ -765,19 +782,17 @@ router.post('/delete_all_to_create_new_project',function(req, res, next){
     {
       for(let i=0; i<photos.length; i++){
         var getTarget = setInterval(function(){
-          axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+photos[i].vuforia.target_record.target_id)
-          .then(response => {
-            console.log(response.data)
-            if(response.data.result_code==="Success")
+          client.deleteTarget(req.body.invitation.vuforia.target_record.target_id, function (error, result) {
+          // axios.get(Domain+'/vuforia/DeleteTarget.php?target_id='+photos[i].vuforia.target_record.target_id)
+          // .then(response => {
+            console.log(result)
+            if(result.result_code==="Success")
             {
               clearInterval(getTarget);
-            }else if(response.data.result_code==="UnknownTarget"){
+            }else if(result.result_code==="UnknownTarget"){
               clearInterval(getTarget);
             }
           })
-          .catch(error => {
-            console.log(error);
-          }).catch(next);
         }, 3000);
       }
     }
