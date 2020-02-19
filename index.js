@@ -43,7 +43,7 @@ app.use(function(err,req,res,next){
   res.status(422).send({error:err.message});
 });
 
-// app.use(express.static(path.join(__dirname, 'build')));
+app.use(express.static(path.join(__dirname, 'build')));
 app.use(express.static(path.join(__dirname, '/')))
 
 app.get('*', function (req, res) {
