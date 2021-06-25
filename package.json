@@ -16,6 +16,7 @@
     "axios": "^0.18.0",
     "body-parser": "^1.18.3",
     "cors": "^2.8.4",
+    "dotenv": "^10.0.0",
     "express": "^4.16.3",
     "express-fileupload": "^0.4.0",
     "ffmpeg": "0.0.4",
@@ -29,7 +30,8 @@
     "nodemon": "^1.18.4",
     "pdfkit": "^0.9.0",
     "shelljs": "^0.8.3",
-    "vuforia-web-service": "^1.0.0",
+    "vuforia-api": "^0.3.1",
+    "vuforiajs": "^0.2.5",
     "youtube-api": "^2.0.10"
   }
 }

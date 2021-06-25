@@ -16,7 +16,7 @@ const User = require('../models/user');
 const Info = require('../models/infocard');
 
 // load module
-var vuforia = require('vuforia-web-service');
+var vuforia = require('vuforia-api');
 
 // init client with valid credentials
 var client = vuforia.client({

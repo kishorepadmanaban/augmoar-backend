@@ -4,14 +4,26 @@ const mongoose  = require('mongoose');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
 const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const app = express();
 
 mongoose.Promise  = global.Promise;
 
-
+// Connect to DB
+var connectionOptions = {
+  useNewUrlParser: true,
+  connectTimeoutMS: 300000, // 5 minutes
+  keepAlive: 120,
+  ha: true, // Make sure the high availability checks are on
+  haInterval: 10000, // Run every 10 seconds
+  useFindAndModify: false,
+  useUnifiedTopology: true,
+  useCreateIndex: true
+};
 //Mongodb connection
-mongoose.connect('mongodb://admin:qazwsx12@68.183.86.113:27017/augmo',{ useNewUrlParser: true });
+mongoose.connect(process.env.DB,connectionOptions);
 mongoose.set('useFindAndModify', false);
 mongoose.connection.once('open', function() {
 	console.log("Database connected successfully");
