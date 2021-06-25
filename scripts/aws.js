@@ -1,21 +1,22 @@
 const fs = require('fs');
 const AWS = require('aws-sdk');
 
-// Enter copied or downloaded access id and secret here
-const ID = 'AKIA5VG6EYROWUJKFHPC';
-const SECRET = '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';
-
-// Enter the name of the bucket that you have created here
-const BUCKET_NAME = 'augmo-platform';;
-
-
-// Initializing S3 Interface
-const s3 = new AWS.S3({
-    accessKeyId: ID,
-    secretAccessKey: SECRET
-});
 
 const uploadFile = (file, name, cb) => {
+    // Enter copied or downloaded access id and secret here
+    const ID = process.env.AWS_ACCESS_KEY_ID;
+    const SECRET = process.env.AWS_SECRET_ACCESS_KEY;
+    
+    // Enter the name of the bucket that you have created here
+    const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+    
+    
+    // Initializing S3 Interface
+    const s3 = new AWS.S3({
+        accessKeyId: ID,
+        secretAccessKey: SECRET
+    });
+    
     // read content from the file
     const fileContent = fs.readFileSync(file);
     
