@@ -204,6 +204,7 @@ router.post('/invitationimage', function(req, res, next) {
     } else {
       let image = Domain+'/assets/images/invitations/' + filename;
       console.log(image)
+      console.log(util)
 
       var target = {
         // name of the target, unique within a database
@@ -211,12 +212,13 @@ router.post('/invitationimage', function(req, res, next) {
         // width of the target in scene unit
         'width': 1.0,
         // the base64 encoded binary recognition image data
-        'image': util.encodeFileBase64('assets/images/invitations/' + filename),
+        'image': util.encodeFileBase64(image),
         // indicates whether or not the target is active for query
         'active_flag': true,
         // the base64 encoded application metadata associated with the target
         'application_metadata': util.encodeBase64('some metadata about your image')
       };
+      console.log('target', target);
       console.log('testtttt');
       client.addTarget(target, function (error, result) {
         if (error) { // e.g. [Error: AuthenticationFailure]
