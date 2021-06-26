@@ -21,11 +21,17 @@ var vuforia = require('vuforia-api');
 // init client with valid credentials
 var client = vuforia.client({
 
-    // provision_access_key
-    'accessKey': 'c3abfd916b3ccc42c7328641f6dc4a290853ddfc',
-
-    // server_secret_key
-    'secretKey': '46fae2f9393785fe36e952563c3eccc32449aa4e'
+    // Server access key (used for Vuforia Web Services API)
+    'serverAccessKey': process.env.VWS_SERVER_ACCESS_KEY,
+ 
+    // Server secret key (used for Vuforia Web Services API)
+    'serverSecretKey': process.env.VWS_SERVER_SECRET_KEY,
+ 
+    // Client access key (used for Vuforia Web Query API)
+    'clientAccessKey': process.env.VWS_CLIENT_ACCESS_KEY,
+ 
+    // Client secret key (used for Vuforia Web Query API)
+    'clientSecretKey': process.env.VWS_CLIENT_SECRET_KEY
 });
 
 // util for base64 encoding and decoding
