@@ -221,6 +221,7 @@ router.post('/invitationimage', function(req, res, next) {
       console.log('target', target);
       console.log('testtttt');
       client.addTarget(target, function (error, result) {
+        console.log('error', error);
         if (error) { // e.g. [Error: AuthenticationFailure]
             console.error({result});
             if(result.result_code==="BadImage")
