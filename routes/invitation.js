@@ -217,7 +217,7 @@ router.post('/invitationimage', function(req, res, next) {
         // the base64 encoded application metadata associated with the target
         'application_metadata': util.encodeBase64('some metadata about your image')
       };
-
+      console.log('testtttt');
       client.addTarget(target, function (error, result) {
         if (error) { // e.g. [Error: AuthenticationFailure]
             console.error({result});
@@ -263,6 +263,7 @@ router.post('/invitationimage', function(req, res, next) {
               }
             })
             .catch(error => {
+              console.log('errrrrr');
               console.log(error);
             }).catch(next);
           }
