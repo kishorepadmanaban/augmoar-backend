@@ -212,7 +212,7 @@ router.post('/invitationimage', function(req, res, next) {
         // width of the target in scene unit
         'width': 1.0,
         // the base64 encoded binary recognition image data
-        'image': util.encodeFileBase64(image),
+        'image': util.encodeFileBase64('assets/images/invitations/' + filename),
         // indicates whether or not the target is active for query
         'active_flag': true,
         // the base64 encoded application metadata associated with the target
