@@ -199,6 +199,7 @@ router.post('/invitationimage', function(req, res, next) {
   // Use the mv() method to place the file somewhere on your server
   File.mv('assets/images/invitations/' + filename, function(err) {
     if (err) {
+      console.log('err', err);
       return res.status(500).send(err);
     } else {
       let image = Domain+'/assets/images/invitations/' + filename;
