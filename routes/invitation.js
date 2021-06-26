@@ -229,55 +229,55 @@ router.post('/invitationimage', function(req, res, next) {
       client.addTarget(target, function (error, result) {
         console.log('error', error);
         console.log('result', result);
-        // if (error) { // e.g. [Error: AuthenticationFailure]
-        //     console.error({result});
-        //     if(result.result_code==="BadImage")
-        //     {
-        //       res.send({error:"Bad Image"})
-        //     }
-        // } else {
-        //   console.log({result});
-        //   if(result.result_code==="TargetCreated"){
-        //     //Check if duplicate target exist
-        //       client.checkForDuplicateTargets(result.target_id, function (error, duplicate) {
+        if (error) { // e.g. [Error: AuthenticationFailure]
+            console.error({result});
+            if(result.result_code==="BadImage")
+            {
+              res.send({error:"Bad Image"})
+            }
+        } else {
+          console.log({result});
+          if(result.result_code==="TargetCreated"){
+            //Check if duplicate target exist
+              client.checkForDuplicateTargets(result.target_id, function (error, duplicate) {
 
-        //       console.log(duplicate)
-        //       if(duplicate.similar_targets.length<1)
-        //       {
-        //         var getTarget = setInterval(function(){
-        //           client.retrieveTarget(result.target_id, function (error, result) {
+              console.log(duplicate)
+              if(duplicate.similar_targets.length<1)
+              {
+                var getTarget = setInterval(function(){
+                  client.retrieveTarget(result.target_id, function (error, result) {
 
-        //             console.log(result)
-        //             if(result.target_record.tracking_rating !== -1)
-        //             {
-        //               res.send({status:"success",response:result, image});
-        //               clearInterval(getTarget);
-        //             }
-        //           })
-        //         }, 3000);
-        //       }else{
-        //         res.send({error:"Duplicate target exist"})
+                    console.log(result)
+                    if(result.target_record.tracking_rating !== -1)
+                    {
+                      res.send({status:"success",response:result, image});
+                      clearInterval(getTarget);
+                    }
+                  })
+                }, 3000);
+              }else{
+                res.send({error:"Duplicate target exist"})
 
-        //         var getTarget = setInterval(function(){
-        //         client.deleteTarget(result.target_id, function (error, result) {
-        //           console.log(result)
-        //           if(result.result_code === "Success")
-        //           {
-        //             clearInterval(getTarget);
-        //           }else if(result.result_code==="UnknownTarget"){
-        //             res.send({status:"No target exist"})
-        //             clearInterval(getTarget)
-        //           }
-        //         })
-        //       }, 3000);
-        //       }
-        //     })
-        //     .catch(error => {
-        //       console.log('errrrrr');
-        //       console.log(error);
-        //     }).catch(next);
-        //   }
-        // }
+                var getTarget = setInterval(function(){
+                client.deleteTarget(result.target_id, function (error, result) {
+                  console.log(result)
+                  if(result.result_code === "Success")
+                  {
+                    clearInterval(getTarget);
+                  }else if(result.result_code==="UnknownTarget"){
+                    res.send({status:"No target exist"})
+                    clearInterval(getTarget)
+                  }
+                })
+              }, 3000);
+              }
+            })
+            .catch(error => {
+              console.log('errrrrr');
+              console.log(error);
+            }).catch(next);
+          }
+        }
     });
     }
   })
