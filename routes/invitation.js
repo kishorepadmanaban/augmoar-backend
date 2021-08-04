@@ -306,15 +306,16 @@ router.get('/getsummary/:id', function(req, res, next) {
 
 //Delete Invitation
 router.delete('/deleteinvitationimage/:id', function(req, res, next) {
+  console.log('req.params.id', req.params.id);
   var deleteTarget = setInterval(function(){
     client.deleteTarget(req.params.id, function (error, result) {
-    console.log(result);
+    console.log(result.result_code);
     if(result.result_code==="Success")
     {
-      res.send(response.data);
+      res.send(result);
       clearInterval(deleteTarget);
     }else if(result.result_code==="UnknownTarget"){
-      res.send(response.data)
+      res.send(result)
       clearInterval(deleteTarget)
     }
   })
