@@ -312,7 +312,7 @@ router.delete('/deleteinvitationimage/:id', function(req, res, next) {
     console.log(result.result_code);
     if(result.result_code==="Success")
     {
-      res.send(result);
+      res.send({ status: "success" });
       clearInterval(deleteTarget);
     }else if(result.result_code==="UnknownTarget"){
       res.send(result)
