@@ -32,6 +32,6 @@
     "shelljs": "^0.8.3",
     "vuforia-api": "^0.3.1",
     "vuforiajs": "^0.2.5",
-    "youtube-api": "^2.0.10"
+    "youtube-api": "^3.0.1"
   }
 }
